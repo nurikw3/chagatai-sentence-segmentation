@@ -8,7 +8,7 @@
 
 Пайплайн обучает custom Stanza tokenizer для сегментации чагатайского текста
 без пунктуации. Границы предложений берутся из строк `Original` файла
-`Chagatai_BERT_Project/Dataset_OCR.ods`.
+`Dataset_OCR.ods`.
 
 ## Запуск
 
@@ -21,14 +21,14 @@ uv sync
 Пересобрать train/dev/test и Stanza labels из ODS:
 
 ```bash
-uv run python Chagatai_BERT_Project/augmentation.py
-uv run python Chagatai_BERT_Project/labeling.py
+uv run python augmentation.py
+uv run python labeling.py
 ```
 
 Быстрое тестовое обучение:
 
 ```bash
-uv run python Chagatai_BERT_Project/train_stanza_tokenizer.py \
+uv run python train_stanza_tokenizer.py \
   --steps 20 \
   --eval-steps 5 \
   --report-steps 5 \
@@ -38,7 +38,7 @@ uv run python Chagatai_BERT_Project/train_stanza_tokenizer.py \
 Основное обучение:
 
 ```bash
-uv run python Chagatai_BERT_Project/train_stanza_tokenizer.py \
+uv run python train_stanza_tokenizer.py \
   --steps 2000 \
   --eval-steps 100 \
   --report-steps 25 \
@@ -51,18 +51,18 @@ uv run python Chagatai_BERT_Project/train_stanza_tokenizer.py \
 Проверить модель на строке из test split:
 
 ```bash
-uv run python Chagatai_BERT_Project/check_stanza_tokenizer.py --row 0
+uv run python check_stanza_tokenizer.py --row 0
 ```
 
 Проверить на своем тексте:
 
 ```bash
-uv run python Chagatai_BERT_Project/check_stanza_tokenizer.py \
+uv run python check_stanza_tokenizer.py \
   --text "چاغاتای متنی"
 ```
 
 ## Результаты
 
-- CSV с token labels: `Chagatai_BERT_Project/*_final.csv`
-- Stanza labels: `Chagatai_BERT_Project/stanza_chg/tokenizer/`
-- Обученная модель: `Chagatai_BERT_Project/stanza_chg/models/chg_sic_tokenizer.pt`
+- CSV с token labels: `*_final.csv`
+- Stanza labels: `stanza_chg/tokenizer/`
+- Обученная модель: `stanza_chg/models/chg_sic_tokenizer.pt`
