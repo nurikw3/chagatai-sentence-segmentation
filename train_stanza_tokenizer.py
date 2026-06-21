@@ -18,6 +18,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--steps", type=int, default=500)
     parser.add_argument("--eval-steps", type=int, default=50)
     parser.add_argument("--report-steps", type=int, default=25)
+    parser.add_argument("--early-stop-steps", type=int, default=500)
     parser.add_argument("--max-seqlen", type=int, default=800)
     parser.add_argument("--device", default="mps")
     parser.add_argument("--save-dir", type=Path, default=MODEL_DIR)
@@ -59,6 +60,8 @@ def main() -> None:
             str(args.eval_steps),
             "--report_steps",
             str(args.report_steps),
+            "--max_steps_before_stop",
+            str(args.early_stop_steps),
             "--max_seqlen",
             str(args.max_seqlen),
         ]

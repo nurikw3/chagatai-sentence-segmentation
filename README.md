@@ -42,6 +42,7 @@ uv run python Chagatai_BERT_Project/train_stanza_tokenizer.py \
   --steps 2000 \
   --eval-steps 100 \
   --report-steps 25 \
+  --early-stop-steps 500 \
   --device mps
 ```
 
