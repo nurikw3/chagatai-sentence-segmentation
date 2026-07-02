@@ -7,6 +7,8 @@ from pathlib import Path
 import pandas as pd
 import stanza
 
+from augmentation import clean_sentence
+
 
 BASE_DIR = Path(__file__).resolve().parent
 DEFAULT_MODEL = BASE_DIR / "stanza_chg" / "models" / "chg_sic_tokenizer.pt"
@@ -48,7 +50,7 @@ def main() -> None:
     if args.text is None:
         text, gold = load_text_from_row(args.test_csv, args.row)
     else:
-        text = args.text
+        text = clean_sentence(args.text)
         gold = []
 
     nlp = stanza.Pipeline(

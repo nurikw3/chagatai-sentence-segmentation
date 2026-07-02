@@ -54,6 +54,12 @@ uv run python train_stanza_tokenizer.py \
 uv run python check_stanza_tokenizer.py --row 0
 ```
 
+Оценить модель на всем test split:
+
+```bash
+uv run python evaluate_stanza_tokenizer.py --device mps
+```
+
 Проверить на своем тексте:
 
 ```bash
