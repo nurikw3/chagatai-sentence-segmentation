@@ -1,5 +1,9 @@
 # Chagatai Sentence Segmentation
 
+<p align="center">
+  <img src="eos_demo.gif" alt="Разметка EOS на уровне слов на чагатайском тексте" width="720">
+</p>
+
 Пайплайн готовит датасеты для определения границ предложений в чагатайском
 тексте без пунктуации. Основная разметка хранится на уровне слов:
 
@@ -108,6 +112,8 @@ src/unified_dataset/
 scripts/
   build_unified_dataset.py
   build_dataset_variants.py
+  make_eos_demo.py
+eos_demo.gif
 ```
 
 Основное обучение запускается из `stanza.ipynb`. Для быстрой проверки кода:
