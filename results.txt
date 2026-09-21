@@ -384,3 +384,37 @@ Comparison:
 Artifacts:
 - Metrics: /kaggle/working/chagatai_sbd/mixed_synthetic_finetune/mixed_synthetic_finetune_metrics.json
 - Model: /kaggle/working/chagatai_sbd/mixed_synthetic_finetune/models/nocharlm_seed7_mixed_synthetic_best.pt
+
+## Run 17: Schema 2.0 Unified chagatai_only (Hugging Face Hub load, Kaggle 2x T4 GPU)
+Date: 2026-09-22
+
+Setup:
+- Data source: Hugging Face Hub (`chagatai-project/chagatai-sbd`, config: `chagatai_only`)
+- Model: Stanza BiLSTM Tokenizer (emb_dim=32, hidden_dim=64, rnn_layers=1, nocharlm)
+- Training platform: Kaggle GPU (Tesla T4 x 2, PyTorch 2.10.0+cu128)
+- Optimizer: Adam, lr=0.002000, betas=(0.9, 0.9), eps=0.000000, weight_decay=0.0
+- Tokenizer config: max_seqlen=1000, batch_size=64, steps=15000, eval_steps=100, report_steps=50, max_steps_before_stop=1500, seed=42, device=cuda
+- Checkpoint selection: best dev score at step 1100 (saved to chg_only_tokenizer.pt)
+
+Data:
+- Train samples: 3,045 sequences (Chagatai-only)
+- Dev samples: 145 sequences (Chagatai sequential)
+- Test samples: 295 sequences (Chagatai sequential)
+
+Metrics on Chagatai test set (295 samples):
+- Token boundaries:    precision=1.0000  recall=1.0000  f1=1.0000  tp=12830 fp=0   fn=0
+- Sentence boundaries: precision=0.8259  recall=0.5795  f1=0.6811  tp=503   fp=106 fn=365
+- Sentence exact match: 45/295 = 0.1525 (15.25%)
+
+Artifacts:
+- Kaggle Kernel: nurikw3/chagatai-stanza-sbd (version 1)
+- Metrics: /kaggle/working/chagatai_sbd/chagatai_only_test_metrics.json
+- Model: /kaggle/working/chagatai_sbd/models/chg_only_tokenizer.pt
+
+Notes:
+- Trained with accelerated batch_size=64 and cudnn.benchmark=True on 2x T4 GPU.
+- Token segmentation achieved 100.0% precision, recall, and F1 across 12,830 test tokens.
+- Sentence boundary precision reached 82.59% (significantly higher than previous 68-70% baselines).
+- Sentence boundary F1 reached 0.6811 (vs Run 2 baseline of 0.6783 and Run 6 of 0.6503).
+- Early stopping triggered gracefully after 1500 steps of stagnation, selecting step 1100 checkpoint.
+
