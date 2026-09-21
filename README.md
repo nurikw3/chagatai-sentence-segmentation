@@ -16,9 +16,6 @@
 - `0`: слово не заканчивает предложение;
 - `1`: последнее слово предложения (`EOS`).
 
-Stanza-разметка `0/1/2` строится из тех же данных отдельным адаптером. Исходные
-границы при этом не меняются.
-
 ## Готовые варианты
 
 Одна команда собирает пять наборов:
@@ -99,7 +96,7 @@ uv run python scripts/prepare_hf_dataset.py --upload-repo-id chagatai-project/ch
 
 ```bash
 uv sync
-uv run python scripts/build_dataset_variants.py --export-stanza
+uv run python scripts/build_dataset_variants.py
 ```
 
 Результаты появятся в `data/UNIFIED/builds/`. Исходные файлы должны лежать в
@@ -109,7 +106,7 @@ uv run python scripts/build_dataset_variants.py --export-stanza
 Если нужен один вариант, используйте `scripts/build_unified_dataset.py`. Например:
 
 ```bash
-uv run python scripts/build_unified_dataset.py --export-stanza
+uv run python scripts/build_unified_dataset.py
 ```
 
 ## Правила подготовки данных
@@ -157,8 +154,7 @@ Dev и test содержат только последовательный Chaga
 - `source_sentences.csv`: очищенные предложения, split и источник;
 - `train.csv`, `dev.csv`, `test.csv`: текст, токены и метки на уровне слов;
 - `stats.csv`: число последовательностей, токенов и границ по языкам и методам;
-- `manifest.json`: параметры и результаты проверок;
-- `stanza/`: производные `.txt` и `.toklabels`, если указан `--export-stanza`.
+- `manifest.json`: параметры и результаты проверок.
 
 ## Код
 
@@ -169,7 +165,6 @@ src/unified_dataset/
   augmentation.py
   labeling.py
   validation.py
-  adapters/stanza.py
 scripts/
   build_unified_dataset.py
   build_dataset_variants.py
@@ -185,7 +180,7 @@ assets/
 eos_demo.gif
 ```
 
-Основное обучение запускается из `stanza.ipynb`. Для быстрой проверки кода:
+Для быстрой проверки кода:
 
 ```bash
 uv run pytest -q
