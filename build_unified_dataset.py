@@ -32,6 +32,10 @@ PARENTHETICAL_FOOTNOTE_RE = re.compile(
 )
 SPACE_RE = re.compile(r"\s+")
 MARKDOWN_LINK_RE = re.compile(r"\[([^\]]+)\]\([^)]*\)")
+URL_REMNANT_RE = re.compile(
+    r"(?:^|\s)(?:https?|www|com|org|net|html?|php)(?:\s|$)", re.IGNORECASE
+)
+MIN_AUXILIARY_ARABIC_SCRIPT_RATIO = 0.75
 
 
 @dataclass(frozen=True)
@@ -79,6 +83,57 @@ def clean_sentence(text: str) -> str:
 
 def has_word_character(token: str) -> bool:
     return any(char.isalpha() or char.isdigit() for char in token)
+
+
+def is_arabic_script_character(char: str) -> bool:
+    codepoint = ord(char)
+    return (
+        0x0600 <= codepoint <= 0x06FF
+        or 0x0750 <= codepoint <= 0x077F
+        or 0x08A0 <= codepoint <= 0x08FF
+        or 0xFB50 <= codepoint <= 0xFDFF
+        or 0xFE70 <= codepoint <= 0xFEFF
+    )
+
+
+def arabic_script_ratio(text: str) -> float:
+    arabic = 0
+    other_script_letters = 0
+    for char in text:
+        name = unicodedata.name(char, "")
+        if is_arabic_script_character(char):
+            arabic += 1
+        elif any(
+            script in name
+            for script in ("LATIN", "CYRILLIC", "CJK", "IDEOGRAPH")
+        ):
+            other_script_letters += 1
+    total = arabic + other_script_letters
+    return arabic / total if total else 0.0
+
+
+def auxiliary_noise_reasons(cleaned_text: str) -> tuple[str, ...]:
+    reasons: list[str] = []
+    if arabic_script_ratio(cleaned_text) < MIN_AUXILIARY_ARABIC_SCRIPT_RATIO:
+        reasons.append("low_arabic_script_ratio")
+    if URL_REMNANT_RE.search(cleaned_text):
+        reasons.append("url_or_domain_remnant")
+    return tuple(reasons)
+
+
+def deduplicate_cleaned_sources(
+    sources: Sequence[SourceSentence],
+) -> tuple[list[SourceSentence], int]:
+    seen: set[str] = set()
+    kept: list[SourceSentence] = []
+    dropped = 0
+    for source in sources:
+        if source.cleaned_text in seen:
+            dropped += 1
+            continue
+        seen.add(source.cleaned_text)
+        kept.append(source)
+    return kept, dropped
 
 
 def make_source_sentence(
@@ -187,10 +242,12 @@ def read_chagatai_sources(
         else:
             sources.append(source)
 
+    sources, dropped_duplicates = deduplicate_cleaned_sources(sources)
     metadata = {
         "early_rows_included": len(early_rows),
         "late_rows_included_before_cleaning": len(late_rows),
         "duplicate_late_pages_dropped": duplicate_pages,
+        "duplicate_cleaned_sentences_dropped": dropped_duplicates,
         "empty_rows_dropped": dropped_empty,
         "missing_early_page_markers": sorted(
             set(range(1, 35))
@@ -251,6 +308,8 @@ def read_uzs_sources(
     seen_cleaned: set[str] = set()
     dropped_empty = 0
     dropped_duplicates = 0
+    dropped_noise = 0
+    noise_reason_counts: Counter[str] = Counter()
     for row_index, row in selected_df.iterrows():
         if pd.isna(row["tgt_sent"]):
             dropped_empty += 1
@@ -266,6 +325,11 @@ def read_uzs_sources(
         if source is None:
             dropped_empty += 1
             continue
+        noise_reasons = auxiliary_noise_reasons(source.cleaned_text)
+        if noise_reasons:
+            dropped_noise += 1
+            noise_reason_counts.update(noise_reasons)
+            continue
         if source.cleaned_text in seen_cleaned:
             dropped_duplicates += 1
             continue
@@ -277,6 +341,8 @@ def read_uzs_sources(
         "allowed_sources": sorted(allowed_sources),
         "rows_after_source_filter": len(selected_df),
         "empty_rows_dropped": dropped_empty,
+        "noise_rows_dropped": dropped_noise,
+        "noise_reason_counts": dict(sorted(noise_reason_counts.items())),
         "duplicate_cleaned_sentences_dropped": dropped_duplicates,
     }
     return sources, metadata
@@ -313,6 +379,8 @@ def read_uyghur_sources(
     seen_cleaned: set[str] = set()
     dropped_empty = 0
     dropped_duplicates = 0
+    dropped_noise = 0
+    noise_reason_counts: Counter[str] = Counter()
     article_count = 0
 
     with csv_path.open("r", encoding="utf-8-sig", newline="") as handle:
@@ -339,6 +407,11 @@ def read_uyghur_sources(
                 if source is None:
                     dropped_empty += 1
                     continue
+                noise_reasons = auxiliary_noise_reasons(source.cleaned_text)
+                if noise_reasons:
+                    dropped_noise += 1
+                    noise_reason_counts.update(noise_reasons)
+                    continue
                 if source.cleaned_text in seen_cleaned:
                     dropped_duplicates += 1
                     continue
@@ -348,6 +421,8 @@ def read_uyghur_sources(
     metadata = {
         "articles": article_count,
         "empty_segments_dropped": dropped_empty,
+        "noise_rows_dropped": dropped_noise,
+        "noise_reason_counts": dict(sorted(noise_reason_counts.items())),
         "duplicate_cleaned_sentences_dropped": dropped_duplicates,
         "sentence_boundaries_inferred_from": "terminal punctuation and line breaks",
     }
@@ -551,6 +626,21 @@ def validate_dataset(
     if len(source_by_id) != len(sources):
         raise ValueError("Duplicate source_sentence_id values")
 
+    seen_cleaned: set[tuple[str, str]] = set()
+    for source in sources:
+        cleaned_key = (source.language, source.cleaned_text)
+        if cleaned_key in seen_cleaned:
+            raise ValueError(
+                f"Duplicate cleaned source sentence: {source.source_sentence_id}"
+            )
+        seen_cleaned.add(cleaned_key)
+        if source.language != "chg" and auxiliary_noise_reasons(
+            source.cleaned_text
+        ):
+            raise ValueError(
+                f"Auxiliary corpus noise leaked: {source.source_sentence_id}"
+            )
+
     chagatai_ids = {
         split: {
             source.source_sentence_id
@@ -644,6 +734,8 @@ def validate_dataset(
         },
         "dev_test_are_chagatai_sequential_only": True,
         "auxiliary_languages_are_train_only": True,
+        "source_cleaned_text_is_unique_per_language": True,
+        "auxiliary_noise_filtered": True,
         "token_label_lengths_match": True,
         "partial_merge_final_token_is_not_eos": True,
     }
@@ -858,7 +950,7 @@ def main() -> None:
         (source.split, source.language) for source in all_sources
     )
     manifest = {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "variant": variant_name,
         "seed": args.seed,
         "labels": {"0": "O/not sentence end", "1": "EOS/sentence end"},

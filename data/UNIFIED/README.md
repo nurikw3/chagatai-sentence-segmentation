@@ -46,6 +46,16 @@ Chagatai is split in source order before augmentation: 70% train, 10% dev,
 20% test. Auxiliary languages are always train-only. Dev and test contain only
 sequentially concatenated Chagatai source sentences.
 
+## Source cleaning
+
+Cleaning happens before splitting, deterministic sampling, and augmentation.
+The builder keeps the first occurrence of every exact `cleaned_text` value per
+language and drops later duplicates. For South Uzbek and Uyghur it also drops
+rows where less than 75% of detected script characters use Arabic script, and
+rows whose cleaned text still contains URL/domain tokens such as `http`, `www`,
+`com`, or `org`. These filters remove bibliographic and web-scraping fragments
+without deleting one-word sentences automatically.
+
 ## Output schema
 
 Each build directory contains:

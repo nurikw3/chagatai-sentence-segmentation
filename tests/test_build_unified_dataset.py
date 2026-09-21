@@ -5,8 +5,11 @@ import random
 
 from build_unified_dataset import (
     SourceSentence,
+    arabic_script_ratio,
+    auxiliary_noise_reasons,
     choose_sequential_group_sizes,
     clean_sentence,
+    deduplicate_cleaned_sources,
     partial_boundary_merge,
 )
 
@@ -47,3 +50,27 @@ def test_partial_merge_has_only_internal_eos() -> None:
     assert sum(labels) == 1
     assert labels[-1] == 0
     assert record["boundary_at_end"] == "[true, false]"
+
+
+def test_auxiliary_noise_detection_matches_review_rules() -> None:
+    assert arabic_script_ratio("ئۇيغۇرچە تېكىست") == 1.0
+    assert arabic_script_ratio("Syracuse University Press") == 0.0
+    assert auxiliary_noise_reasons("Syracuse University Press") == (
+        "low_arabic_script_ratio",
+    )
+    assert auxiliary_noise_reasons(
+        "بۇ بىر ئۇزۇن ئۇيغۇرچە جۈملە بولۇپ تور ئادرېسى http uyghur"
+    ) == (
+        "url_or_domain_remnant",
+    )
+
+
+def test_exact_cleaned_duplicates_keep_first_source() -> None:
+    first = source("s1", "الف ب")
+    duplicate = source("s2", "الف ب")
+    distinct = source("s3", "ج د")
+
+    kept, dropped = deduplicate_cleaned_sources([first, duplicate, distinct])
+
+    assert kept == [first, distinct]
+    assert dropped == 1
