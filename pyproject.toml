@@ -5,6 +5,8 @@ description = "Canonical multilingual data pipeline for Chagatai sentence bounda
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "datasets>=3.0.0",
+    "huggingface-hub>=0.28.0",
     "openpyxl>=3.1.5",
     "pandas>=3.0.3",
     "pyarrow>=19.0.0",

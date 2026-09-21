@@ -34,6 +34,48 @@ Stanza-разметка `0/1/2` строится из тех же данных �
 Во всех пяти вариантах используются одни и те же Chagatai train, dev и test.
 UZS и Uyghur добавляются только в train.
 
+## Hugging Face
+
+Датасет опубликован в Hugging Face Hub: [`chagatai-project/chagatai-sbd`](https://huggingface.co/datasets/chagatai-project/chagatai-sbd).
+
+Доступны все пять конфигураций:
+
+```python
+from datasets import load_dataset
+
+# По умолчанию загружается chagatai_only:
+ds = load_dataset("chagatai-project/chagatai-sbd")
+
+# Балансированный многоязычный набор (рекомендуется):
+balanced = load_dataset("chagatai-project/chagatai-sbd", "chagatai_uzs_uyghur_balanced")
+
+# Парные конфигурации:
+chg_uig = load_dataset("chagatai-project/chagatai-sbd", "chagatai_uyghur")
+chg_uzs = load_dataset("chagatai-project/chagatai-sbd", "chagatai_uzs")
+
+# Полный набор (276k примеров, доступен стриминг):
+full_train = load_dataset(
+    "chagatai-project/chagatai-sbd",
+    "chagatai_uzs_uyghur_full",
+    split="train",
+    streaming=True,
+)
+```
+
+Каждая конфигурация содержит сплиты `train`, `validation` и `test`. Сплиты `validation` (145 последовательностей) и `test` (295 последовательностей) физически едины для всех пяти конфигураций: они содержат только чагатайские тексты, собранные методом `sequential`. Различается только `train`.
+
+Поля записей:
+- `tokens` (`list[str]`): список слов;
+- `labels` (`list[int]`): метки границ (`0` — не граница, `1` — `EOS` в конце слова);
+- `text` (`str`): очищенный текст последовательности;
+- `language`, `method`, `source_sentence_ids`, `fragment_spans`, `boundary_at_end`, `num_tokens`, `num_boundaries`.
+
+Для экспорта и выгрузки на Hub используется `scripts/prepare_hf_dataset.py`:
+
+```bash
+uv run python scripts/prepare_hf_dataset.py --upload-repo-id chagatai-project/chagatai-sbd
+```
+
 ## Сборка
 
 ```bash
@@ -113,6 +155,7 @@ scripts/
   build_unified_dataset.py
   build_dataset_variants.py
   make_eos_demo.py
+  prepare_hf_dataset.py
 eos_demo.gif
 ```
 

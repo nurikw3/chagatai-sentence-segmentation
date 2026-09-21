@@ -30,6 +30,7 @@ htmlcov/
 # Local raw corpora and generated unified-dataset builds
 data/UNIFIED/raw/
 data/UNIFIED/builds/
+data/UNIFIED/hf_export/
 
 # Local notebook outputs and historical material
 work/
