@@ -5,10 +5,13 @@ import random
 
 import pytest
 
+from scripts.build_dataset_variants import VARIANTS, build_command
 from unified_dataset.adapters.stanza import stanza_text_and_labels
 from unified_dataset.augmentation import (
+    build_train_language,
     choose_sequential_group_sizes,
     partial_boundary_merge,
+    random_concatenation,
     sequential_concatenation,
 )
 from unified_dataset.cleaning import clean_sentence, source_noise_reasons
@@ -76,6 +79,38 @@ def test_partial_merge_has_only_internal_eos() -> None:
     assert record["boundary_at_end"] == "[true, false]"
 
 
+def test_train_augmentation_resamples_duplicate_sequences() -> None:
+    sources = [
+        source(f"s{i}", f"الف{i} ب{i} ت{i} ث{i}")
+        for i in range(1, 31)
+    ]
+    records = build_train_language(sources, seed=42, augmentation_multiplier=3.0)
+    texts = [str(record["text"]) for record in records]
+    assert len(texts) == len(set(texts))
+
+
+def test_random_augmentation_reorders_nonadjacent_sources() -> None:
+    sources = [
+        source(f"s{i}", f"الف{i} ب{i} ت{i}")
+        for i in range(1, 101)
+    ]
+    records = random_concatenation(sources, sample_count=100, seed=42)
+    order_by_id = {
+        item.source_sentence_id: item.source_order
+        for item in sources
+    }
+    for record in records:
+        source_ids = json.loads(str(record["source_sentence_ids"]))
+        orders = [order_by_id[source_id] for source_id in source_ids]
+        assert 2 <= len(orders) <= 5
+        assert orders != sorted(orders)
+        assert all(
+            abs(first - second) > 1
+            for index, first in enumerate(orders)
+            for second in orders[index + 1 :]
+        )
+
+
 def test_exact_cleaned_duplicates_keep_first_source() -> None:
     first = source("s1", "الف ب")
     duplicate = source("s2", "الف ب")
@@ -118,3 +153,38 @@ def test_validation_reconstructs_tokens_from_source_spans() -> None:
     broken["train"][0]["text"] = "битый текст"
     with pytest.raises(ValueError, match="text does not match tokens"):
         validate_dataset(train_sources, broken)
+
+
+def test_five_variant_commands_preserve_chagatai_balance(tmp_path) -> None:
+    assert [variant.name for variant in VARIANTS] == [
+        "chagatai_only",
+        "chagatai_uyghur",
+        "chagatai_uzs",
+        "chagatai_uzs_uyghur_full",
+        "chagatai_uzs_uyghur_balanced",
+    ]
+
+    commands = {
+        variant.name: build_command(
+            variant,
+            output_dir=tmp_path / variant.name,
+            chagatai_train_sentences=3035,
+            seed=42,
+            augmentation_multiplier=1.0,
+            chagatai_1_35=tmp_path / "early.xlsx",
+            chagatai_35_181=tmp_path / "late.xlsx",
+            uzs_parquet=tmp_path / "uzs.parquet",
+            uyghur_csv=tmp_path / "uyghur.csv",
+            uzs_sources="books",
+            export_stanza=False,
+        )
+        for variant in VARIANTS
+    }
+
+    assert "--max-uyghur-sentences" in commands["chagatai_uyghur"]
+    assert "--max-uzs-sentences" in commands["chagatai_uzs"]
+    assert "--max-uzs-sentences" not in commands["chagatai_uzs_uyghur_full"]
+    assert "--max-uyghur-sentences" not in commands["chagatai_uzs_uyghur_full"]
+    balanced = commands["chagatai_uzs_uyghur_balanced"]
+    assert balanced[balanced.index("--max-uzs-sentences") + 1] == "3035"
+    assert balanced[balanced.index("--max-uyghur-sentences") + 1] == "3035"

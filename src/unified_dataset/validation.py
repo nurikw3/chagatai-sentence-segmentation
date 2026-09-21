@@ -45,6 +45,23 @@ def validate_dataset(
     if chagatai_ids["dev"] & chagatai_ids["test"]:
         raise ValueError("Chagatai dev/test source leakage")
 
+    protected_chagatai_texts = {
+        source.cleaned_text
+        for source in sources
+        if source.language == "chg" and source.split in {"dev", "test"}
+    }
+    auxiliary_protected_overlap = [
+        source.source_sentence_id
+        for source in sources
+        if source.language != "chg"
+        and source.cleaned_text in protected_chagatai_texts
+    ]
+    if auxiliary_protected_overlap:
+        raise ValueError(
+            "Auxiliary source text overlaps Chagatai dev/test: "
+            f"{auxiliary_protected_overlap[:5]}"
+        )
+
     seen_sequence_ids: set[str] = set()
     sequential_reference_counts: dict[tuple[str, str], Counter[str]] = {}
     sequence_texts: dict[str, set[str]] = {split: set() for split in split_records}
@@ -130,6 +147,10 @@ def validate_dataset(
             ):
                 raise ValueError(f"{sequence_id}: invalid partial-merge labels")
             if method == "sequential":
+                if not 2 <= len(source_ids) <= 4:
+                    raise ValueError(
+                        f"{sequence_id}: sequential group must contain 2-4 sources"
+                    )
                 if not all(boundary_flags):
                     raise ValueError(f"{sequence_id}: sequential fragment without EOS")
                 if any(
@@ -142,6 +163,27 @@ def validate_dataset(
                     raise ValueError(f"{sequence_id}: sequential source order changed")
                 key = (split, str(record["language"]))
                 sequential_reference_counts.setdefault(key, Counter()).update(source_ids)
+            if method == "random":
+                if (
+                    not 2 <= len(source_ids) <= 5
+                    or len(source_ids) != len(set(source_ids))
+                ):
+                    raise ValueError(
+                        f"{sequence_id}: random group must contain 2-5 distinct sources"
+                    )
+                orders = [source.source_order for source in referenced_sources]
+                if orders == sorted(orders):
+                    raise ValueError(
+                        f"{sequence_id}: random group preserved source order"
+                    )
+                if any(
+                    abs(first_order - second_order) == 1
+                    for index, first_order in enumerate(orders)
+                    for second_order in orders[index + 1 :]
+                ):
+                    raise ValueError(
+                        f"{sequence_id}: random group contains adjacent sources"
+                    )
 
             sequence_text = str(record["text"])
             if sequence_text in sequence_texts[split]:
@@ -180,10 +222,13 @@ def validate_dataset(
         },
         "dev_test_are_chagatai_sequential_only": True,
         "auxiliary_languages_are_train_only": True,
+        "auxiliary_sources_do_not_overlap_chagatai_dev_test": True,
         "source_cleaned_text_is_unique_per_language": True,
         "source_noise_filtered": True,
         "token_label_lengths_match": True,
         "tokens_reconstruct_from_source_spans": True,
         "sequential_sources_covered_exactly_once": True,
         "partial_merge_final_token_is_not_eos": True,
+        "sequential_groups_have_2_to_4_sources": True,
+        "random_groups_have_2_to_5_nonadjacent_reordered_sources": True,
     }

@@ -159,14 +159,18 @@ def main() -> None:
         }
 
     train_records: list[dict[str, object]] = []
+    seen_train_texts: set[str] = set()
     for language in ("chg", "uzs", "uig"):
         if language in train_languages:
-            train_records.extend(
-                build_train_language(
-                    train_languages[language],
-                    args.seed,
-                    args.augmentation_multiplier,
-                )
+            language_records = build_train_language(
+                train_languages[language],
+                args.seed,
+                args.augmentation_multiplier,
+                forbidden_texts=seen_train_texts,
+            )
+            train_records.extend(language_records)
+            seen_train_texts.update(
+                str(record["text"]) for record in language_records
             )
 
     dev_sources = [source for source in chagatai if source.split == "dev"]

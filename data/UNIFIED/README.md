@@ -28,6 +28,8 @@ Cleaning applies NFKC, removes punctuation, symbols, controls, and combining mar
 ## Build
 
 ```bash
+uv run python scripts/build_dataset_variants.py --export-stanza
+
 uv run python scripts/build_unified_dataset.py --export-stanza
 
 uv run python scripts/build_unified_dataset.py \
@@ -38,7 +40,12 @@ uv run python scripts/build_unified_dataset.py \
   --output-dir data/UNIFIED/builds/chagatai_uzs_uyghur_balanced
 ```
 
-The full uncapped multilingual build is intentionally not the default because it is dominated by Uyghur. Use explicit caps for controlled language balance.
+The batch command creates five variants: Chagatai only, Chagatai + Uyghur,
+Chagatai + UZS, the full uncapped multilingual corpus, and a balanced
+multilingual corpus. Pairwise and balanced variants cap each auxiliary
+language dynamically to the number of Chagatai train sentences. The uncapped
+full build is retained only as a separate comparison because it is dominated
+by auxiliary data.
 
 ## Output
 
@@ -47,5 +54,6 @@ The full uncapped multilingual build is intentionally not the default because it
 - `stats.csv`: counts by split, language, and method;
 - `manifest.json`: schema, parameters, source hashes, cleaning statistics, and validation checks;
 - `stanza/`: optional character-level projection produced by the adapter.
+- `variants_manifest.json`: cross-variant audit and balance summary.
 
 The validator checks source isolation, exact sequence overlap, auxiliary train-only policy, reconstruction from source spans, sequential coverage exactly once, and partial-merge EOS semantics.
