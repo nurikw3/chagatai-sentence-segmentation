@@ -25,3 +25,7 @@ htmlcov/
 
 # Runtime logs
 *.log
+
+# Local raw corpora and generated unified-dataset builds
+data/UNIFIED/raw/
+data/UNIFIED/builds/
