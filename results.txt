@@ -455,6 +455,43 @@ Notes:
 - Sentence exact match achieved an all-time record of 23.39% (69/295 sentences exactly reconstructed).
 - Token boundaries remained perfectly segmented at 100.0% precision, recall, and F1.
 
+## Run 19: Schema 2.0 Unified chagatai_only (Deep BiLSTM: 2 layers, hidden_dim=128)
+Date: 2026-09-22
+
+Setup:
+- Data source: Hugging Face Hub (`chagatai-project/chagatai-sbd`, config: `chagatai_only`)
+- Model: Stanza BiLSTM Tokenizer (emb_dim=32, hidden_dim=128, rnn_layers=2, nocharlm)
+- Training platform: Kaggle GPU (Tesla T4 x 2, PyTorch 2.10.0+cu128)
+- Optimizer: Adam, lr=0.002000, betas=(0.9, 0.9), eps=0.000000, weight_decay=0.0
+- Tokenizer config: max_seqlen=1000, batch_size=64, steps=15000, eval_steps=100, report_steps=50, max_steps_before_stop=1500, seed=42, device=cuda
+- Checkpoint selection: best dev score at step 1000 (saved to chg_deep_tokenizer.pt)
+
+Data:
+- Train samples: 3,045 sequences (Chagatai-only)
+- Dev samples: 145 sequences (Chagatai sequential)
+- Test samples: 295 sequences (Chagatai sequential)
+
+Metrics on Chagatai test set (295 samples):
+1. Uncalibrated (tau = 0.50):
+   - Token boundaries:    precision=1.0000  recall=1.0000  f1=1.0000  tp=12830 fp=0   fn=0
+   - Sentence boundaries: precision=0.7953  recall=0.6221  f1=0.6981  tp=540   fp=139 fn=328
+   - Sentence exact match: 56/295 = 0.1898 (18.98%)
+
+2. Calibrated Threshold (tau = 0.35 selected on Dev):
+   - Token boundaries:    precision=1.0000  recall=1.0000  f1=1.0000  tp=12830 fp=0   fn=0
+   - Sentence boundaries: precision=0.7066  recall=0.7131  f1=0.7099  tp=619   fp=257 fn=249
+   - Sentence exact match: 59/295 = 0.2000 (20.00%)
+
+Artifacts:
+- Kaggle Kernel: nurikw3/chagatai-stanza-deep-sbd (version 1)
+- Model: /kaggle/working/chagatai_sbd/models/chg_deep_tokenizer.pt
+
+Notes:
+- Doubling hidden_dim (64 -> 128) and increasing layers (1 -> 2) gave an immediate boost to the Chagatai-only model:
+  - Uncalibrated Sentence F1 increased from 68.11% to 69.81% (+1.70%).
+  - Uncalibrated Exact Match increased from 15.25% to 18.98% (+24.5% relative gain).
+  - Calibrated Sentence F1 reached 70.99% with 20.00% exact match.
+
 ## Run 20: Ensemble (chagatai_only + chagatai_uzs_uyghur_balanced soft probability blend)
 Date: 2026-09-22
 
