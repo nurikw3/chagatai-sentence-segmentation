@@ -43,23 +43,36 @@ UZS и Uyghur добавляются только в train.
 ```python
 from datasets import load_dataset
 
-# По умолчанию загружается chagatai_only:
-ds = load_dataset("chagatai-project/chagatai-sbd")
-
-# Балансированный многоязычный набор (рекомендуется):
+# 1. Загрузка сбалансированной конфигурации:
 balanced = load_dataset("chagatai-project/chagatai-sbd", "chagatai_uzs_uyghur_balanced")
 
-# Парные конфигурации:
+# Доступ к сплитам:
+train = balanced["train"]            # 9 135 последовательностей (chg + uig + uzs)
+validation = balanced["validation"]  # 145 последовательностей (только chg, sequential)
+test = balanced["test"]              # 295 последовательностей (только chg, sequential)
+
+# Работа с отдельной записью:
+sample = train[0]
+print("Текст:", sample["text"])
+print("Слова (tokens):", sample["tokens"][:5])
+print("Метки (labels):", sample["labels"][:5])  # 0 = внутри, 1 = граница (EOS)
+print("Метод аугментации:", sample["method"])   # sequential / random / partial
+assert len(sample["tokens"]) == len(sample["labels"])
+
+# 2. Загрузка других конфигураций:
+chg_only = load_dataset("chagatai-project/chagatai-sbd", "chagatai_only")  # default
 chg_uig = load_dataset("chagatai-project/chagatai-sbd", "chagatai_uyghur")
 chg_uzs = load_dataset("chagatai-project/chagatai-sbd", "chagatai_uzs")
 
-# Полный набор (276k примеров, доступен стриминг):
-full_train = load_dataset(
+# 3. Потоковая загрузка полного набора без скачивания на диск (276k строк):
+full_stream = load_dataset(
     "chagatai-project/chagatai-sbd",
     "chagatai_uzs_uyghur_full",
     split="train",
     streaming=True,
 )
+for row in full_stream.take(3):
+    print(row["sequence_id"], row["language"], len(row["tokens"]))
 ```
 
 Каждая конфигурация содержит сплиты `train`, `validation` и `test`. Сплиты `validation` (145 последовательностей) и `test` (295 последовательностей) физически едины для всех пяти конфигураций: они содержат только чагатайские тексты, собранные методом `sequential`. Различается только `train`.
