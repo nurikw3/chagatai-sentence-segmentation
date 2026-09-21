@@ -1,4 +1,10 @@
-# Chagatai Sentence Segmentation
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/title_dark.gif">
+    <source media="(prefers-color-scheme: light)" srcset="assets/title_light.gif">
+    <img src="assets/title_light.gif" alt="Chagatai Sentence Segmentation" width="580">
+  </picture>
+</p>
 
 <p align="center">
   <img src="eos_demo.gif" alt="Разметка EOS на уровне слов на чагатайском тексте" width="720">
@@ -169,10 +175,13 @@ scripts/
   build_dataset_variants.py
   generate_eda_plots.py
   make_eos_demo.py
+  make_title_animation.py
   prepare_hf_dataset.py
 assets/
   eda_cleaning_noise.png
   eda_token_distributions.png
+  title_dark.gif
+  title_light.gif
 eos_demo.gif
 ```
 
