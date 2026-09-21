@@ -418,3 +418,41 @@ Notes:
 - Sentence boundary F1 reached 0.6811 (vs Run 2 baseline of 0.6783 and Run 6 of 0.6503).
 - Early stopping triggered gracefully after 1500 steps of stagnation, selecting step 1100 checkpoint.
 
+## Run 18: Schema 2.0 Unified chagatai_uzs_uyghur_balanced (Multilingual train, threshold calibration)
+Date: 2026-09-22
+
+Setup:
+- Data source: Hugging Face Hub (`chagatai-project/chagatai-sbd`, config: `chagatai_uzs_uyghur_balanced`)
+- Model: Stanza BiLSTM Tokenizer (emb_dim=32, hidden_dim=64, rnn_layers=1, nocharlm)
+- Training platform: Kaggle GPU (Tesla T4 x 2, PyTorch 2.10.0+cu128)
+- Optimizer: Adam, lr=0.002000, betas=(0.9, 0.9), eps=0.000000, weight_decay=0.0
+- Tokenizer config: max_seqlen=1000, batch_size=64, steps=15000, eval_steps=100, report_steps=50, max_steps_before_stop=1500, seed=42, device=cuda
+- Checkpoint selection: best dev score at step 2000 (saved to chg_balanced_tokenizer.pt)
+
+Data:
+- Train samples: 9,135 sequences (Chagatai: 3,035, UZS: 3,035, Uyghur: 3,035)
+- Dev samples: 145 sequences (Chagatai sequential)
+- Test samples: 295 sequences (Chagatai sequential)
+
+Metrics on Chagatai test set (295 samples):
+1. Uncalibrated (tau = 0.50):
+   - Token boundaries:    precision=1.0000  recall=1.0000  f1=1.0000  tp=12830 fp=0  fn=0
+   - Sentence boundaries: precision=0.8593  recall=0.5207  f1=0.6485  tp=452   fp=74 fn=416
+   - Sentence exact match: 31/295 = 0.1051 (10.51%)
+
+2. Calibrated Threshold (tau = 0.30 selected on Dev):
+   - Token boundaries:    precision=1.0000  recall=1.0000  f1=1.0000  tp=12830 fp=0   fn=0
+   - Sentence boundaries: precision=0.6756  recall=0.7293  f1=0.7014  tp=633   fp=304 fn=235
+   - Sentence exact match: 69/295 = 0.2339 (23.39%)
+
+Artifacts:
+- Kaggle Kernel: nurikw3/chagatai-stanza-balanced-sbd (version 1)
+- Model: /kaggle/working/chagatai_sbd/models/chg_balanced_tokenizer.pt
+
+Notes:
+- Multilingual balanced training enriched the vocabulary and grammatical transition diversity.
+- With threshold calibration (tau=0.30 tuned on dev), Recall jumped from 52.07% to 72.93% (+20.8%).
+- Sentence exact match achieved an all-time record of 23.39% (69/295 sentences exactly reconstructed).
+- Token boundaries remained perfectly segmented at 100.0% precision, recall, and F1.
+
+
