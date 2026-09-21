@@ -455,4 +455,32 @@ Notes:
 - Sentence exact match achieved an all-time record of 23.39% (69/295 sentences exactly reconstructed).
 - Token boundaries remained perfectly segmented at 100.0% precision, recall, and F1.
 
+## Run 20: Ensemble (chagatai_only + chagatai_uzs_uyghur_balanced soft probability blend)
+Date: 2026-09-22
 
+Setup:
+- Component Model 1: Run 17 (`chagatai_only`, checkpoint `chg_only_tokenizer.pt`)
+- Component Model 2: Run 18 (`chagatai_uzs_uyghur_balanced`, checkpoint `chg_balanced_tokenizer.pt`)
+- Ensembling method: Soft continuous probability averaging (P_ens = 0.50 * P_only + 0.50 * P_bal)
+- Evaluated on: Chagatai sequential test set (295 samples)
+
+Data:
+- Dev samples: 145 sequences (Chagatai sequential)
+- Test samples: 295 sequences (Chagatai sequential)
+
+Metrics on Chagatai test set (295 samples):
+1. Uncalibrated (tau = 0.50):
+   - Token boundaries:    precision=1.0000  recall=1.0000  f1=1.0000  tp=12830 fp=0  fn=0
+   - Sentence boundaries: precision=0.8782  recall=0.5565  f1=0.6812  tp=483   fp=67 fn=385
+   - Sentence exact match: 44/295 = 0.1492 (14.92%)
+
+2. Calibrated Threshold (tau = 0.28 selected on Dev):
+   - Token boundaries:    precision=1.0000  recall=1.0000  f1=1.0000  tp=12830 fp=0   fn=0
+   - Sentence boundaries: precision=0.6893  recall=0.7362  f1=0.7120  tp=639   fp=288 fn=229
+   - Sentence exact match: 66/295 = 0.2237 (22.37%)
+
+Notes:
+- Soft probability ensembling of in-domain Chagatai-only and multilingual balanced models achieves the highest Sentence F1 (0.7120) across all evaluated models.
+- When both models agree at tau = 0.50, Sentence Precision reaches 87.82% with only 67 false positives across 12,830 tokens.
+- With dev-tuned calibration (tau = 0.28), False Negatives are reduced from 365 (in baseline) to 229 (-37.3% missed boundaries).
+- Exact match reaches 22.37% (66/295 sentences completely identical to gold).
