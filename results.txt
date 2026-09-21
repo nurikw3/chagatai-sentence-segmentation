@@ -211,3 +211,176 @@ Metrics saved to: /kaggle/working/chagatai_sbd/metrics/nocharlm_lower_dropout.js
 Notes:
 - Lower dropout may help this small, clean, punctuation-free dataset fit boundaries better.
 - Compared with Run 2 sentence F1=0.6783, delta=-0.0408.
+
+## Run 11: Uyghur Stanza → Chagatai fine-tune, evaluated on Chagatai test set
+Date: 2026-07-03
+
+Setup:
+- Start model: official Stanza Uyghur tokenizer (`ug/tokenize/udt.pt`), trained on UD_Uyghur-UDT and used by TurkicNLP for `uig`
+- Trained on: Chagatai fine-tune train_final.csv
+- Validation: Chagatai dev_final.csv during fine-tune (not included in train files)
+- Transfer: Uyghur Stanza → Chagatai fine-tune from saved tokenizer checkpoint, not from scratch
+- CharLM: none
+- CharLM corpus: none
+- Evaluated on: Chagatai test set (test_final.csv)
+- Optimizer: Adam, lr=0.002000, betas=(0.9, 0.9), eps=0.000000, weight_decay=0.0
+- Tokenizer config: fine_tune_steps=30000, batch_size=32, max_seqlen=1000, seed=42, device=cuda
+
+Eval data:
+- eval csv: /kaggle/input/datasets/nurikw3/chagatai-test/test_final.csv
+- eval samples: 58
+- eval stanza files: /kaggle/working/chagatai_sbd/uyghur_stanza_chagatai_finetune/chagatai_tokenizer
+- Test samples: 58
+
+Metrics:
+- Token boundaries:    precision=0.9995  recall=1.0000  f1=0.9997  tp=1945 fp=1 fn=0
+- Sentence boundaries: precision=0.7032  recall=0.6301  f1=0.6646  tp=109 fp=46 fn=64
+- Sentence exact match: 9/58 = 0.1552
+
+Metrics saved to: /kaggle/working/chagatai_sbd/metrics/uyghur_stanza_chagatai_finetune.json
+
+Notes:
+- Compared with Run 2 sentence F1=0.6783, delta=-0.0137.
+- Compared with the CharLM run sentence F1≈0.62, delta=+0.0446.
+- Fine-tuned from the official Stanza Uyghur tokenizer used by TurkicNLP for `uig`; Chagatai dev/test were not included in train files.
+
+## Run 13: Chagatai tokenizer, no CharLM, seed 7 reproducibility run
+Date: 2026-07-28
+
+Setup:
+- Trained on: Chagatai dataset only (train_final.csv + dev_final.csv)
+- CharLM: none
+- Evaluated on: Chagatai test set (test_final.csv)
+- Optimizer: Adam, lr=0.002000, betas=(0.9, 0.9), eps=0.000000, weight_decay=0.0
+- Tokenizer config: steps=30000, batch_size=32, max_seqlen=1000, seed=7, device=cuda
+- Hardware: Kaggle, 2x Tesla T4 visible; Stanza training used CUDA
+- Early stopping: best dev score=0.699462 at step 5600; stopped at step 8800
+
+Eval data:
+- eval csv: /kaggle/input/datasets/nurikw3/chagatai-test/test_final.csv
+- eval samples: 58
+- eval stanza files: /kaggle/working/chagatai_sbd/tokenizer
+- Test samples: 58
+
+Metrics:
+- Token boundaries:    precision=0.9985  recall=1.0000  f1=0.9992  tp=1945 fp=3 fn=0
+- Sentence boundaries: precision=0.7190  recall=0.6358  f1=0.6748  tp=110 fp=43 fn=63
+- Sentence exact match: 10/58 = 0.1724
+
+Metrics saved to: /kaggle/working/chagatai_sbd/metrics/nocharlm_seed7_reproduction.json
+
+Notes:
+- Exact reproduction of Run 7 on the cleaned 58-sample test split.
+- Full-precision sentence F1=0.6748466257668712, identical to Run 7.
+
+## Run 14: Stanza seed 7 + XLM-R ONNX ensemble, evaluated on Chagatai test set
+Date: 2026-07-28
+
+Setup:
+- Stanza component: Run 13 Chagatai-only tokenizer checkpoint
+- ONNX component: BekaBratan/sbd-lowlr-final-onnx
+- ONNX architecture: XLMRobertaForTokenClassification, labels O / B-SENT
+- Alignment, fusion weight, and threshold selected only on dev_final.csv
+- Locked alignment: ONNX probability at the last subword mapped to the boundary after the same word
+- Locked fusion: 0.45 * Stanza + 0.55 * ONNX; threshold=0.55
+- Evaluated once on: Chagatai test set (test_final.csv)
+- ONNX runtime: CPU (the current onnxruntime-gpu wheel requires CUDA 13; Kaggle image provides CUDA 12.8)
+
+Dev selection metrics:
+- Stanza:  precision=0.9074 recall=0.7101 f1=0.7967 tp=49 fp=5 fn=20
+- ONNX:   precision=0.6744 recall=0.8406 f1=0.7484 tp=58 fp=28 fn=11
+- Ensemble: precision=0.9107 recall=0.7391 f1=0.8160 tp=51 fp=5 fn=18
+
+Test metrics:
+- Stanza sentence boundaries:   precision=0.7190 recall=0.6358 f1=0.6748 tp=110 fp=43 fn=63
+- ONNX sentence boundaries:     precision=0.5991 recall=0.7341 f1=0.6597 tp=127 fp=85 fn=46
+- Ensemble sentence boundaries: precision=0.7432 recall=0.6358 f1=0.6854 tp=110 fp=38 fn=63
+- Ensemble sentence exact match: 10/58 = 0.1724
+- Token boundaries: inherited from Stanza Run 13 and unchanged (f1=0.9992)
+
+Metrics saved to: /kaggle/working/chagatai_sbd/metrics/stanza_xlmr_onnx_ensemble.json
+
+Notes:
+- Full-precision ensemble sentence F1=0.6853582554517134.
+- Delta vs reproduced Stanza seed 7 baseline: +0.0105116296848422 sentence F1.
+- The gain comes from precision: five Stanza false-positive sentence boundaries are removed while true positives and false negatives remain unchanged.
+- The Hugging Face repository has no model card describing its label-to-subword alignment, so four plausible alignments were compared on dev only before locking `last_to_same`.
+
+## Run 15: seed-7 Stanza synthetic sentence-only fine-tune
+Date: 2026-07-30
+
+Setup:
+- Start model: nocharlm_seed7_reproduction.pt
+- Fine-tune train: sync_train.csv built only from type=sentence src_text
+- Augmentation: sequential concatenation + random shuffling + partial merge
+- Validation: original Chagatai dev_final.csv
+- Evaluation: unchanged original Chagatai test_final.csv
+- Config: steps=10000, lr=0.0005, batch_size=32, seed=7, device=cuda
+- Selected checkpoint: best dev score=0.69946220 at step 0
+
+Data:
+- Synthetic train samples: 432
+- Methods: {'random_shuffling': 200, 'partial_merge': 200, 'sequential': 32}
+- Dev samples: 22
+- Test samples: 58
+
+Baseline test metrics:
+- Token boundaries: precision=0.9985 recall=1.0000 f1=0.9992 tp=1945 fp=3 fn=0
+- Sentence boundaries: precision=0.7190 recall=0.6358 f1=0.6748 tp=110 fp=43 fn=63
+- Sentence exact match: 10/58 = 0.1724
+
+Fine-tuned test metrics:
+- Token boundaries: precision=0.9985 recall=1.0000 f1=0.9992 tp=1945 fp=3 fn=0
+- Sentence boundaries: precision=0.7190 recall=0.6358 f1=0.6748 tp=110 fp=43 fn=63
+- Sentence exact match: 10/58 = 0.1724
+
+Comparison:
+- Sentence F1 delta: +0.00000000
+- Improved: False
+
+Artifacts:
+- Metrics: /kaggle/working/chagatai_sbd/synthetic_finetune/synthetic_finetune_metrics.json
+- Model: /kaggle/working/chagatai_sbd/synthetic_finetune/models/nocharlm_seed7_synthetic_finetuned.pt
+
+## Run 16: seed-7 Stanza original + clean synthetic fine-tune
+Date: 2026-07-30
+
+Setup:
+- Start model: nocharlm_seed7_reproduction.pt
+- Fine-tune train: original Chagatai train_final.csv + cleaned sync_train.csv
+- Synthetic filter: type=sentence src_text only; rows containing Latin letters removed
+- Synthetic normalization: Unicode NFKC
+- Synthetic augmentation: 31 sequential + 50 random shuffling + 50 partial merge
+- Validation: original Chagatai dev_final.csv
+- Evaluation: unchanged original Chagatai test_final.csv
+- LR sweep selected only on dev: [1e-05, 3e-05, 5e-05]
+- Config: steps=600, eval_steps=20, batch_size=32, seed=7, device=cuda
+- Selected LR: 3e-05
+- Selected checkpoint: best dev score=0.70570012 at step 60
+- Vocabulary built from train only; dev/test characters were not inspected
+
+Data:
+- Original train samples: 609
+- Synthetic train samples: 131
+- Combined train samples: 740
+- Methods: {'random_shuffling': 50, 'partial_merge': 50, 'sequential': 31}
+- Dev samples: 22
+- Test samples: 58
+
+Baseline test metrics:
+- Token boundaries: precision=0.9985 recall=1.0000 f1=0.9992 tp=1945 fp=3 fn=0
+- Sentence boundaries: precision=0.7190 recall=0.6358 f1=0.6748 tp=110 fp=43 fn=63
+- Sentence exact match: 10/58 = 0.1724
+
+Fine-tuned test metrics:
+- Token boundaries: precision=0.9985 recall=1.0000 f1=0.9992 tp=1945 fp=3 fn=0
+- Sentence boundaries: precision=0.7000 recall=0.6474 f1=0.6727 tp=112 fp=48 fn=61
+- Sentence exact match: 10/58 = 0.1724
+
+Comparison:
+- Sentence F1 delta: -0.00217395
+- Improved: False
+
+Artifacts:
+- Metrics: /kaggle/working/chagatai_sbd/mixed_synthetic_finetune/mixed_synthetic_finetune_metrics.json
+- Model: /kaggle/working/chagatai_sbd/mixed_synthetic_finetune/models/nocharlm_seed7_mixed_synthetic_best.pt

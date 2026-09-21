@@ -1,72 +1,51 @@
 # Unified word-level SBD dataset
 
-This directory contains reproducible, model-agnostic sentence-boundary data.
-The canonical label is attached to each word:
-
-- `0` — the word is not the end of a sentence;
-- `1` — the word is the final word of a sentence (`EOS`).
-
-No Stanza character labels or transformer subword labels are stored here.
-Those representations must be derived later from the canonical word labels.
+This directory stores local raw inputs and reproducible schema 2.0 builds. Both `raw/` and `builds/` are Git-ignored.
 
 ## Inputs
 
-Raw inputs are kept under `data/UNIFIED/raw/` and are ignored by Git. The
-current local build expects:
+The builder expects:
 
-- `chagatai_pages_1_35.xlsx`;
-- `chagatai_pages_35_181.xlsx`;
-- `uyghur_corpus.csv`;
-- the Hugging Face snapshot of `tahrirchi/lutfiy` downloaded with:
+- `raw/chagatai_pages_1_35.xlsx`;
+- `raw/chagatai_pages_35_181.xlsx`;
+- `raw/lutfiy_hf/data/train-00000-of-00001.parquet`;
+- `raw/uyghur_corpus.csv`.
 
-  ```bash
-  hf download tahrirchi/lutfiy \
-    --repo-type dataset \
-    --local-dir data/UNIFIED/raw/lutfiy_hf
-  ```
-
-## Build variants
-
-The base command creates a Chagatai-only dataset. South Uzbek and Uyghur are
-independent, train-only additions:
+Download the Lutfiy snapshot with:
 
 ```bash
-uv run python build_unified_dataset.py
-uv run python build_unified_dataset.py --include-uzs
-uv run python build_unified_dataset.py --include-uyghur
-uv run python build_unified_dataset.py --include-uzs --include-uyghur
+hf download tahrirchi/lutfiy \
+  --repo-type dataset \
+  --local-dir data/UNIFIED/raw/lutfiy_hf
 ```
 
-By default the Lutfiy `books` domain is used because it contains sentence-like
-running text. Use `--uzs-sources books,web,dictionary` to include every domain.
-Use `--max-uzs-sentences N` and `--max-uyghur-sentences N` for deterministic
-caps; `0` means no cap.
+## Canonical contract
 
-Chagatai is split in source order before augmentation: 70% train, 10% dev,
-20% test. Auxiliary languages are always train-only. Dev and test contain only
-sequentially concatenated Chagatai source sentences.
+Word labels are `0` for non-EOS and `1` for EOS. Chagatai is deduplicated and split in source order 70/10/20 before augmentation. UZS and Uyghur are train-only. Dev and test contain only sequential Chagatai.
 
-## Output schema
+Cleaning applies NFKC, removes punctuation, symbols, controls, and combining marks, and rejects residual Latin, Cyrillic, CJK, URL, and bibliography noise. Every sequence retains source IDs and fragment spans.
 
-Each build directory contains:
+## Build
 
-- `source_sentences.csv` — one normalized source sentence per row, with stable
-  provenance and split assignment;
-- `train.csv`, `dev.csv`, `test.csv` — canonical sequences;
-- `stats.csv` — counts by split, language, and augmentation method;
-- `manifest.json` — parameters, input hashes, Hugging Face revision, and
-  validation results.
+```bash
+uv run python scripts/build_unified_dataset.py --export-stanza
 
-Sequence columns:
+uv run python scripts/build_unified_dataset.py \
+  --include-uzs --include-uyghur \
+  --max-uzs-sentences 3035 \
+  --max-uyghur-sentences 3035 \
+  --export-stanza \
+  --output-dir data/UNIFIED/builds/chagatai_uzs_uyghur_balanced
+```
 
-- `sequence_id`, `split`, `language`, `method`;
-- `source_sentence_ids` — JSON list referencing `source_sentences.csv`;
-- `fragment_spans` — `[start, end)` token spans retained from each source;
-- `boundary_at_end` — whether the end of each retained fragment is a true EOS;
-- `text`, `tokens`, `labels` — cleaned text and JSON word/label arrays;
-- `num_tokens`, `num_source_sentences`, `num_boundaries`.
+The full uncapped multilingual build is intentionally not the default because it is dominated by Uyghur. Use explicit caps for controlled language balance.
 
-Train uses three methods: sequential concatenation of 2–4 adjacent sentences,
-random concatenation of 2–5 distinct sentences, and partial boundary merge.
-For partial merge the retained tail of sentence 1 ends in `1`, while the final
-token of the retained head of sentence 2 remains `0`.
+## Output
+
+- `source_sentences.csv`: normalized sources, provenance, split, and token counts;
+- `train.csv`, `dev.csv`, `test.csv`: canonical sequences and word labels;
+- `stats.csv`: counts by split, language, and method;
+- `manifest.json`: schema, parameters, source hashes, cleaning statistics, and validation checks;
+- `stanza/`: optional character-level projection produced by the adapter.
+
+The validator checks source isolation, exact sequence overlap, auxiliary train-only policy, reconstruction from source spans, sequential coverage exactly once, and partial-merge EOS semantics.

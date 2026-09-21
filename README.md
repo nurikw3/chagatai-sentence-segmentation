@@ -1,16 +1,30 @@
-<p align="center">
-  <a href="https://commons.wikimedia.org/wiki/File:Paper_Scroll_3.svg">
-    <img src="https://upload.wikimedia.org/wikipedia/commons/2/2c/Paper_Scroll_3.svg" alt="Paper scroll" width="96">
-  </a>
-</p>
+# Chagatai Sentence Segmentation
 
-<h1 align="center">Chagatai Sentence Segmentation</h1>
+Репозиторий строит единый датасет для Sentence Boundary Detection. Истинная разметка хранится на уровне слов: `0` — слово не завершает предложение, `1` — EOS. Представление Stanza `0/1/2` создаётся отдельно и не смешивается с каноническими данными.
 
-Пайплайн обучает custom Stanza tokenizer для сегментации чагатайского текста
-без пунктуации. Границы предложений берутся из строк `Original` файла
-`Dataset_OCR.ods`.
+## Структура
 
-## Запуск
+```text
+src/unified_dataset/
+  cleaning.py
+  sources.py
+  augmentation.py
+  labeling.py
+  validation.py
+  adapters/stanza.py
+scripts/
+  build_unified_dataset.py
+data/UNIFIED/
+  raw/       # локальные источники, не коммитятся
+  builds/    # воспроизводимые сборки, не коммитятся
+legacy/
+  old_pipeline/
+  generated_data/
+```
+
+Старые `data/CHAGATAI`, `data/UZS`, отдельные augmentation/labeling-скрипты, модели и CharLM-файлы перенесены в `legacy/` и больше не являются активными входами.
+
+## Сборка датасета
 
 Установить зависимости:
 
@@ -18,57 +32,45 @@
 uv sync
 ```
 
-Пересобрать train/dev/test и Stanza labels из ODS:
+Chagatai-only:
 
 ```bash
-uv run python augmentation.py
-uv run python labeling.py
+uv run python scripts/build_unified_dataset.py --export-stanza
 ```
 
-Быстрое тестовое обучение:
+Сбалансированный Chagatai + South Uzbek + Uyghur:
 
 ```bash
-uv run python train_stanza_tokenizer.py \
-  --steps 20 \
-  --eval-steps 5 \
-  --report-steps 5 \
-  --device mps
+uv run python scripts/build_unified_dataset.py \
+  --include-uzs \
+  --include-uyghur \
+  --max-uzs-sentences 3035 \
+  --max-uyghur-sentences 3035 \
+  --export-stanza \
+  --output-dir data/UNIFIED/builds/chagatai_uzs_uyghur_balanced
 ```
 
-Основное обучение:
+Chagatai делится в исходном порядке 70/10/20 до аугментации. UZS и Uyghur используются только в train. Random и partial augmentation также разрешены только в train; dev/test состоят только из последовательного Chagatai.
+
+## Выходные файлы
+
+Каждая сборка содержит:
+
+- `source_sentences.csv` — очищенные исходные предложения с provenance и split;
+- `train.csv`, `dev.csv`, `test.csv` — канонические последовательности;
+- `stats.csv` — статистика по языку и методу;
+- `manifest.json` — параметры, хэши входов и результаты проверок;
+- `stanza/` — опциональная проекция в `.txt` и `.toklabels`.
+
+`validation.py` проверяет отсутствие leakage, полное покрытие источников, train-only auxiliary languages, точное восстановление токенов из source spans и корректность EOS.
+
+## Обучение и тесты
+
+Основное обучение выполняется в `stanza.ipynb`. Ноутбук принимает только schema 2.0 unified build и создаёт Stanza-файлы из канонической word-level разметки.
 
 ```bash
-uv run python train_stanza_tokenizer.py \
-  --steps 2000 \
-  --eval-steps 100 \
-  --report-steps 25 \
-  --early-stop-steps 500 \
-  --device mps
+uv run pytest -q
+uv run python -m compileall -q src scripts tests
 ```
 
-На машине без Apple MPS замените `--device mps` на `--device cpu`.
-
-Проверить модель на строке из test split:
-
-```bash
-uv run python check_stanza_tokenizer.py --row 0
-```
-
-Оценить модель на всем test split:
-
-```bash
-uv run python evaluate_stanza_tokenizer.py --device mps
-```
-
-Проверить на своем тексте:
-
-```bash
-uv run python check_stanza_tokenizer.py \
-  --text "چاغاتای متنی"
-```
-
-## Результаты
-
-- CSV с token labels: `*_final.csv`
-- Stanza labels: `stanza_chg/tokenizer/`
-- Обученная модель: `stanza_chg/models/chg_sic_tokenizer.pt`
+Исторические результаты сохранены в `results.txt`; новые запуски должны указывать manifest или хэши использованного датасета.

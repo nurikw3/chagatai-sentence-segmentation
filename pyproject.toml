@@ -1,7 +1,7 @@
 [project]
-name = "chagatai-bert-project"
+name = "chagatai-sentence-segmentation"
 version = "0.1.0"
-description = "Add your description here"
+description = "Canonical multilingual data pipeline for Chagatai sentence boundary detection"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -12,3 +12,15 @@ dependencies = [
     "stanza>=1.13.0",
     "turkicnlp[all]>=0.3.0",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.0",
+]
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -7,6 +7,7 @@ env/
 __pycache__/
 *.py[cod]
 *$py.class
+*.egg-info/
 
 # Test, type-checker, and linter caches
 .pytest_cache/
@@ -29,3 +30,7 @@ htmlcov/
 # Local raw corpora and generated unified-dataset builds
 data/UNIFIED/raw/
 data/UNIFIED/builds/
+
+# Local notebook outputs and historical material
+work/
+legacy/
