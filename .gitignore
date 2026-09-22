@@ -31,6 +31,7 @@ htmlcov/
 data/UNIFIED/raw/
 data/UNIFIED/builds/
 data/UNIFIED/hf_export/
+data/charlm/
 
 # Local notebook outputs and historical material
 work/
