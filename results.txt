@@ -521,3 +521,75 @@ Notes:
 - When both models agree at tau = 0.50, Sentence Precision reaches 87.82% with only 67 false positives across 12,830 tokens.
 - With dev-tuned calibration (tau = 0.28), False Negatives are reduced from 365 (in baseline) to 229 (-37.3% missed boundaries).
 - Exact match reaches 22.37% (66/295 sentences completely identical to gold).
+
+## Run 21: Schema 2.0 Unified chagatai_uzs_uyghur_balanced (Deep 8-Layer BiLSTM: hidden_dim=128, rnn_layers=8)
+Date: 2026-09-22
+
+Setup:
+- Data source: Hugging Face Hub (`chagatai-project/chagatai-sbd`, config: `chagatai_uzs_uyghur_balanced`)
+- Model: Stanza BiLSTM Tokenizer (emb_dim=32, hidden_dim=128, rnn_layers=8, dropout=0.33, nocharlm)
+- Training platform: Kaggle GPU (Tesla T4 x 2, PyTorch 2.10.0+cu128)
+- Optimizer: Adam, lr=0.002000, betas=(0.9, 0.9), eps=0.000000, weight_decay=0.0
+- Tokenizer config: max_seqlen=1000, batch_size=64, steps=15000, eval_steps=100, report_steps=50, max_steps_before_stop=1500, seed=42, device=cuda
+
+Data:
+- Train samples: 9,135 sequences (Chagatai: 3,035, UZS: 3,035, Uyghur: 3,035)
+- Dev samples: 145 sequences (Chagatai sequential)
+- Test samples: 295 sequences (Chagatai sequential)
+
+Metrics on Chagatai test set (295 samples):
+1. Uncalibrated (tau = 0.50):
+   - Token boundaries:    precision=1.0000  recall=1.0000  f1=1.0000  tp=12830 fp=0  fn=0
+   - Sentence boundaries: precision=0.8482  recall=0.5795  f1=0.6886  tp=503   fp=90 fn=365
+   - Sentence exact match: 60/295 = 0.2034 (20.34%)
+
+2. Calibrated Threshold (tau = 0.30 selected on Dev):
+   - Token boundaries:    precision=1.0000  recall=1.0000  f1=1.0000  tp=12830 fp=0   fn=0
+   - Sentence boundaries: precision=0.7575  recall=0.6659  f1=0.7088  tp=578   fp=185 fn=290
+   - Sentence exact match: 70/295 = 0.2373 (23.73%)
+
+Artifacts:
+- Kaggle Kernel: nurikw3/chagatai-stanza-balanced-deep-sbd-8-layer-bilstm (version 3)
+- Metrics: /kaggle/working/chagatai_sbd/balanced_deep8_test_metrics.json
+- Model: /kaggle/working/chagatai_sbd/models/chg_balanced_deep8_tokenizer.pt
+
+Notes:
+- Extreme depth (8 BiLSTM layers, ~5.7M parameters) with CuDNN optimization trained stably without divergence.
+- Substantial improvement in precision compared to 1-layer balanced (75.75% vs 67.56%) with low false positives (185 vs 304).
+- Exact match reached a new record of 23.73% (70/295 sentences perfectly segmented).
+
+## Run 22: Schema 2.0 Unified chagatai_uzs_uyghur_balanced (Wide 3-Layer BiLSTM: hidden_dim=256, rnn_layers=3)
+Date: 2026-09-22
+
+Setup:
+- Data source: Hugging Face Hub (`chagatai-project/chagatai-sbd`, config: `chagatai_uzs_uyghur_balanced`)
+- Model: Stanza BiLSTM Tokenizer (emb_dim=32, hidden_dim=256, rnn_layers=3, dropout=0.33, nocharlm)
+- Training platform: Kaggle GPU (Tesla T4 x 2, PyTorch 2.10.0+cu128)
+- Optimizer: Adam, lr=0.002000, betas=(0.9, 0.9), eps=0.000000, weight_decay=0.0
+- Tokenizer config: max_seqlen=1000, batch_size=64, steps=15000, eval_steps=100, report_steps=50, max_steps_before_stop=1500, seed=42, device=cuda
+
+Data:
+- Train samples: 9,135 sequences (Chagatai: 3,035, UZS: 3,035, Uyghur: 3,035)
+- Dev samples: 145 sequences (Chagatai sequential)
+- Test samples: 295 sequences (Chagatai sequential)
+
+Metrics on Chagatai test set (295 samples):
+1. Uncalibrated (tau = 0.50):
+   - Token boundaries:    precision=1.0000  recall=1.0000  f1=1.0000  tp=12830 fp=0  fn=0
+   - Sentence boundaries: precision=0.8591  recall=0.5691  f1=0.6847  tp=494   fp=81 fn=374
+   - Sentence exact match: 52/295 = 0.1763 (17.63%)
+
+2. Calibrated Threshold (tau = 0.25 selected on Dev):
+   - Token boundaries:    precision=1.0000  recall=1.0000  f1=1.0000  tp=12830 fp=0   fn=0
+   - Sentence boundaries: precision=0.7678  recall=0.6590  f1=0.7092  tp=572   fp=173 fn=296
+   - Sentence exact match: 71/295 = 0.2407 (24.07%)
+
+Artifacts:
+- Kaggle Kernel: nurikw3/chagatai-stanza-balanced-wide-sbd-3-layer-256-dim (version 1)
+- Metrics: /kaggle/working/chagatai_sbd/balanced_wide3_test_metrics.json
+- Model: /kaggle/working/chagatai_sbd/models/chg_balanced_wide3_tokenizer.pt
+
+Notes:
+- Wide architecture (`hidden_dim=256, rnn_layers=3`, ~3.77M parameters) achieved the highest Exact Match rate of any standalone model: 24.07% (71/295 paragraphs fully identical).
+- Excellent precision of 76.78% with only 173 false positive boundaries (lowest among all calibrated single models).
+- Token boundaries remained perfectly segmented at 100.0% precision, recall, and F1.
