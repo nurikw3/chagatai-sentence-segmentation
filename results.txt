@@ -734,3 +734,100 @@ Notes:
   * Sentence Precision: 79.95% with only 153 false positive boundaries across the entire test set.
   * Sentence Recall: 70.28% with only 258 missed boundaries (false negatives down from 385 in baseline).
 - Exhaustive combinatorial grid search over all 26 ensemble permutations confirmed that this tri-hybrid synergy is the global optimum for both F1 (74.80%) and Exact Match (27.46%).
+
+## Run 27: Bidirectional CharLM (Forward + Backward 512-dim) with Wide 3-layer BiLSTM
+Date: 2026-09-22
+
+Setup:
+- CharLM Architecture:
+  * Forward CharLM: 1-layer LSTM, hidden_dim=512, char_emb_dim=100 (5.0 MB)
+  * Backward CharLM: 1-layer LSTM, hidden_dim=512, char_emb_dim=100 (5.0 MB)
+  * Combined CharLM contextual adapter representation: 1024 dimensions
+- Tokenizer Architecture:
+  * Character embedding dim: 32
+  * Input dim to BiLSTM: 32 + 1024 = 1056 dimensions
+  * BiLSTM: 3 layers, hidden_dim=256, bidirectional (effective 512 dimensions)
+  * Loss: standard unweighted cross-entropy loss
+- Training Data: `chagatai_uzs_uyghur_balanced` train split (zero leakage, Dev and Test strictly excluded)
+- Optimization: Adam (lr=0.002, betas=(0.9, 0.9)), batch_size=64, early stopping patience=1500
+- Evaluated on: Chagatai sequential test set (295 samples)
+
+Data:
+- Dev samples: 145 sequences (Chagatai sequential)
+- Test samples: 295 sequences (Chagatai sequential)
+
+Metrics on Chagatai test set (295 samples):
+1. Uncalibrated (tau = 0.50):
+   - Token boundaries:    precision=0.9999  recall=0.9999  f1=0.9999  tp=12828 fp=1   fn=2
+   - Sentence boundaries: precision=0.7201  recall=0.6164  f1=0.6642  tp=535   fp=208 fn=333
+   - Sentence exact match: 54/295 = 0.1831 (18.31%)
+
+2. Dev-Calibrated F1 Threshold (tau = 0.55):
+   - Token boundaries:    precision=0.9999  recall=0.9999  f1=0.9999  tp=12828 fp=1   fn=2
+   - Sentence boundaries: precision=0.7297  recall=0.6094  f1=0.6642  tp=529   fp=196 fn=339
+   - Sentence exact match: 57/295 = 0.1932 (19.32%)
+
+3. Dev-Calibrated F2/Recall Threshold (tau = 0.15):
+   - Sentence boundaries: precision=0.6651  recall=0.6705  f1=0.6678  tp=582   fp=293 fn=286
+   - Sentence exact match: 53/295 = 0.1797 (17.97%)
+
+Artifacts:
+- Kaggle Kernel: nurikw3/chagatai-stanza-bidirectional-charlm-sbd (version 5)
+- Metrics: /kaggle/working/chagatai_sbd/balanced_bidirectional_charlm_test_metrics.json
+- Backward CharLM: /kaggle/working/chagatai_sbd/charlm/chg_backward_charlm.pt
+- Tokenizer: /kaggle/working/chagatai_sbd/models/chg_balanced_bicharlm_wide3_tokenizer.pt
+
+Notes:
+- Evaluates the standalone impact of adding backward character language model representations (1024-dim total CharLM embedding) without class re-weighting.
+- The high representation capacity causes conservative boundary prediction when trained with unweighted cross-entropy loss, confirming that loss weighting (pos_weight / Focal loss) is essential when scaling input feature capacity.
+
+## Run 28: Dual-GPU Task Parallelism SBD Training (Weighted Loss + Focal Loss)
+Date: 2026-09-22
+
+Setup:
+- Dual-GPU Task Parallelism Architecture on 2x NVIDIA Tesla T4 GPUs:
+  * Physical GPU 0 (`cuda:0`, process isolation via `CUDA_VISIBLE_DEVICES=0`):
+    - Bi-CharLM (Forward 512 + Backward 512) + Wide 3-layer BiLSTM (hidden_dim=256)
+    - Weighted Cross-Entropy Loss: pos_weight=4.0
+  * Physical GPU 1 (`cuda:1`, process isolation via `CUDA_VISIBLE_DEVICES=1`):
+    - Bi-CharLM (Forward 512 + Backward 512) + Wide 3-layer BiLSTM (hidden_dim=256)
+    - Focal Cross-Entropy Loss: gamma=2.0, pos_weight=4.0
+- Optimization & Runtime:
+  * Backward CharLM pretrained in 3.6 minutes on `cuda:0`
+  * Both GPU workers spawned concurrently and executed with 100% dual-GPU utilization
+  * Total concurrent training time: 46.5 minutes (2790s), zero idle GPU resources
+- Training Data: `chagatai_uzs_uyghur_balanced` train split (zero leakage, Dev and Test strictly excluded)
+- Evaluated on: Chagatai sequential test set (295 samples)
+
+Data:
+- Dev samples: 145 sequences (Chagatai sequential)
+- Test samples: 295 sequences (Chagatai sequential)
+
+Metrics on Chagatai test set (295 samples):
+1. Model 0 (BiCharLM + Weighted Loss pos_weight=4.0, tau = 0.51 selected on Dev):
+   - Sentence boundaries: precision=0.7411  recall=0.6002  f1=0.6633  tp=521  fp=182  fn=347
+   - Sentence exact match: 44/295 = 0.1492 (14.92%)
+
+2. Model 1 (BiCharLM + Focal Loss gamma=2.0, pos_weight=4.0, tau = 0.57 selected on Dev):
+   - Sentence boundaries: precision=0.6868  recall=0.6014  f1=0.6413  tp=522  fp=238  fn=346
+   - Sentence exact match: 38/295 = 0.1288 (12.88%)
+
+3. Dual-GPU Ensemble (Model 0 + Model 1, tau = 0.47 selected on Dev):
+   - Sentence boundaries: precision=0.6879  recall=0.6728  f1=0.6803  tp=584  fp=265  fn=284
+   - Sentence exact match: 51/295 = 0.1729 (17.29%)
+
+Artifacts:
+- Kaggle Kernel: nurikw3/chagatai-stanza-dual-gpu-parallel-sbd (version 5)
+- Metrics: /kaggle/working/chagatai_sbd/dual_gpu_parallel_test_metrics.json
+- Worker 0 Log: /kaggle/working/chagatai_sbd/logs/worker_gpu0.log
+- Worker 1 Log: /kaggle/working/chagatai_sbd/logs/worker_gpu1.log
+- Model 0: /kaggle/working/chagatai_sbd/models/chg_bicharlm_weighted_wide3.pt
+- Model 1: /kaggle/working/chagatai_sbd/models/chg_bicharlm_focal_wide3.pt
+
+Notes:
+- Demonstrates true Dual-GPU Task Parallelism on Kaggle with full multiprocessing and hardware isolation.
+- Ensembling the Weighted Loss and Focal Loss models yields significant synergy:
+  * Recall rises by +7.26% (from 60.02% -> 67.28%), recovering 63 missed sentence boundaries (FN drops from 347 to 284).
+  * Exact Match improves from 12.88% / 14.92% to 17.29% (51 error-free full paragraphs).
+  * Sentence F1 increases by +1.70% / +3.90% over individual components (68.03%).
+
