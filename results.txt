@@ -888,6 +888,11 @@ Test Set Verification Metrics (295 samples, 71,673 character tokens):
    - Max absolute probability difference: 1.31e-06 (machine precision)
    - Boundary decision mismatches: 0 / 71,673 (100% Bit-Exact Match)
 
+1-Q. Config 1-Q (Tri-Hybrid Stanza INT8 Quantized, tau=0.42, 13.5 MB):
+   - ONNX INT8: F1=74.71% | Precision=79.74% | Recall=70.28% | Exact Match=27.12% (80/295) | TP=610 FP=155 FN=258
+   - Model size reduction: 53.3 MB -> 13.5 MB (3.95x compression / -74.7% storage)
+   - Quality preservation: Exact Match 80/295 (differs by only 1 paragraph); F1 delta = -0.09% (exact true boundaries: 610/610).
+
 2. Config 2 (BiCharLM EM SOTA FP32, tau=0.43, 82.8 MB):
    - PyTorch:  F1=74.59% | Precision=79.17% | Recall=70.51% | Exact Match=27.80% (82/295) | TP=612 FP=161 FN=256
    - ONNX Run: F1=74.59% | Precision=79.17% | Recall=70.51% | Exact Match=27.80% (82/295) | TP=612 FP=161 FN=256
