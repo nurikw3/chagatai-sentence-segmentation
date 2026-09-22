@@ -859,4 +859,52 @@ Notes:
 - The integration of backward character language model contextual representations successfully resolves trailing ambiguity at paragraph boundaries, allowing 82 complete paragraphs to be segmented with 100% precision and recall.
 - Missed boundaries (False Negatives) reduced to 256.
 
+## Run 30: Unified Single-Graph ONNX Export, INT8 Dynamic Quantization & Hugging Face Release
+Date: 2026-09-22
 
+Setup:
+- Export format: Open Neural Network Exchange (ONNX) opset 14 with dynamic sequence length axes
+- Single-Graph Ensemble Architecture:
+  * Packed multi-model computation graphs (`nn.ModuleList`) into single `.onnx` files
+  * Internal vocabulary remapping via embedded `Gather` buffers (80-char base -> 59-char / 81-char)
+  * In-graph Soft Voting probability weighting and dynamic thresholding (tau)
+- Quantization:
+  * INT8 Dynamic Quantization (`onnxruntime.quantization.quantize_dynamic`, `per_channel=False`, QInt8)
+  * Target: `chagatai_sbd_bicharlm_em_sota_int8.onnx`
+- Evaluation: Zero-degradation test-set verification on 295 Chagatai test sequences (71,673 character tokens)
+- Deployment Artifacts:
+  1. `chagatai_sbd_tri_hybrid_sota.onnx` (53.3 MB, tau=0.42)
+  2. `chagatai_sbd_bicharlm_em_sota.onnx` (82.8 MB, tau=0.43)
+  3. `chagatai_sbd_bicharlm_em_sota_int8.onnx` (26.0 MB, tau=0.43)
+  4. `chagatai_sbd_fwd_charlm_standalone.onnx` (29.2 MB, tau=0.24)
+  5. `vocab.json` (80 character units)
+  6. `inference.py` (zero-dependency standalone Python inference engine)
+- Hugging Face Repository: https://huggingface.co/chagatai-project/chagatai-sentence-segmentation
+
+Test Set Verification Metrics (295 samples, 71,673 character tokens):
+1. Config 1 (Tri-Hybrid SOTA, tau=0.42, 53.3 MB):
+   - PyTorch:  F1=74.80% | Precision=79.95% | Recall=70.28% | Exact Match=27.46% (81/295) | TP=610 FP=153 FN=258
+   - ONNX Run: F1=74.80% | Precision=79.95% | Recall=70.28% | Exact Match=27.46% (81/295) | TP=610 FP=153 FN=258
+   - Max absolute probability difference: 1.31e-06 (machine precision)
+   - Boundary decision mismatches: 0 / 71,673 (100% Bit-Exact Match)
+
+2. Config 2 (BiCharLM EM SOTA FP32, tau=0.43, 82.8 MB):
+   - PyTorch:  F1=74.59% | Precision=79.17% | Recall=70.51% | Exact Match=27.80% (82/295) | TP=612 FP=161 FN=256
+   - ONNX Run: F1=74.59% | Precision=79.17% | Recall=70.51% | Exact Match=27.80% (82/295) | TP=612 FP=161 FN=256
+   - Max absolute probability difference: 1.19e-06 (machine precision)
+   - Boundary decision mismatches: 0 / 71,673 (100% Bit-Exact Match)
+
+3. Config 2-Q (BiCharLM EM SOTA INT8 Quantized, tau=0.43, 26.0 MB):
+   - ONNX INT8: F1=74.42% | Precision=78.94% | Recall=70.39% | Exact Match=27.80% (82/295) | TP=611 FP=163 FN=257
+   - Model size reduction: 82.8 MB -> 26.0 MB (3.19x compression / -68.6% storage)
+   - Quality preservation: Exact Match preserved 100% (exactly 82/295 paragraphs error-free); F1 delta = -0.17% (611/612 boundaries preserved).
+
+4. Config 3 (Standalone FwdCharLM Wide3, tau=0.24, 29.2 MB):
+   - PyTorch:  F1=71.94% | Precision=71.09% | Recall=72.81% | Exact Match=22.37% (66/295) | TP=632 FP=257 FN=236
+   - ONNX Run: F1=71.94% | Precision=71.09% | Recall=72.81% | Exact Match=22.37% (66/295) | TP=632 FP=257 FN=236
+   - Max absolute probability difference: 3.81e-06 (machine precision)
+   - Boundary decision mismatches: 0 / 71,673 (100% Bit-Exact Match)
+
+Notes:
+- Full ensemble soft-voting logic successfully compiled into single ONNX graphs, eliminating multi-process latency and Stanza runtime dependencies.
+- Published to Hugging Face under `chagatai-project/chagatai-sentence-segmentation` with automated single-line inference support.

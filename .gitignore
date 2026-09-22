@@ -36,3 +36,4 @@ data/charlm/
 # Local notebook outputs and historical material
 work/
 legacy/
+*.onnx
