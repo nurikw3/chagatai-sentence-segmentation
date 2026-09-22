@@ -593,3 +593,32 @@ Notes:
 - Wide architecture (`hidden_dim=256, rnn_layers=3`, ~3.77M parameters) achieved the highest Exact Match rate of any standalone model: 24.07% (71/295 paragraphs fully identical).
 - Excellent precision of 76.78% with only 173 false positive boundaries (lowest among all calibrated single models).
 - Token boundaries remained perfectly segmented at 100.0% precision, recall, and F1.
+
+## Run 23: Ensemble of Deep Architectures (Wide-3 Balanced + Only-Deep-2 + Deep-8)
+Date: 2026-09-22
+
+Setup:
+- Component Model 1: Run 22 (`chagatai_uzs_uyghur_balanced`, 3 layers, hidden_dim=256)
+- Component Model 2: Run 19 (`chagatai_only`, 2 layers, hidden_dim=128)
+- Component Model 3: Run 21 (`chagatai_uzs_uyghur_balanced`, 8 layers, hidden_dim=128)
+- Ensembling method: Soft continuous probability averaging
+- Evaluated on: Chagatai sequential test set (295 samples)
+
+Data:
+- Dev samples: 145 sequences (Chagatai sequential)
+- Test samples: 295 sequences (Chagatai sequential)
+
+Metrics on Chagatai test set (295 samples):
+1. Pairwise Ensemble (Wide-3 + Only-Deep, tau = 0.32 tuned on Dev):
+   - Token boundaries:    precision=1.0000  recall=1.0000  f1=1.0000  tp=12830 fp=0   fn=0
+   - Sentence boundaries: precision=0.7640  recall=0.6935  f1=0.7271  tp=602   fp=186 fn=266
+   - Sentence exact match: 72/295 = 0.2441 (24.41%)
+
+2. Triple Ensemble (Wide-3 + Deep-8 + Only-Deep, tau = 0.34 tuned on Dev):
+   - Token boundaries:    precision=1.0000  recall=1.0000  f1=1.0000  tp=12830 fp=0   fn=0
+   - Sentence boundaries: precision=0.7884  recall=0.6740  f1=0.7267  tp=585   fp=157 fn=283
+   - Sentence exact match: 78/295 = 0.2644 (26.44%)
+
+Notes:
+- Pairwise ensemble (Wide-3 + Only-Deep) set a new repository record of 0.7271 (72.71%) Sentence F1 with 24.41% exact match.
+- Triple ensemble achieved an unprecedented 26.44% Exact Match (78/295 paragraphs segmented with zero errors) and high precision (78.84%).
