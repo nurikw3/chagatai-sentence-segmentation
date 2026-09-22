@@ -831,3 +831,32 @@ Notes:
   * Exact Match improves from 12.88% / 14.92% to 17.29% (51 error-free full paragraphs).
   * Sentence F1 increases by +1.70% / +3.90% over individual components (68.03%).
 
+## Run 29: SOTA Tri-Hybrid + BiCharLM Ensemble (All-Time Exact Match Record: 27.80%)
+Date: 2026-09-22
+
+Setup:
+- Component Model 1: Run 25 (`chagatai_uzs_uyghur_balanced` + Pretrained Forward CharLM, 3 layers, hidden_dim=256)
+- Component Model 2: Run 24 (`chagatai_uzs_uyghur_balanced` + Weighted Cross-Entropy Loss pos_weight=4.0, 3 layers, hidden_dim=256)
+- Component Model 3: Run 28 Model 0 (`chagatai_uzs_uyghur_balanced` + Bidirectional CharLM + Weighted Loss pos_weight=4.0, 3 layers, hidden_dim=256)
+- Ensembling method: Continuous soft probability averaging across:
+  1. Forward CharLM contextual representations (high precision, low false positives)
+  2. Non-CharLM Weighted Loss model (high recall sensitivity)
+  3. Bidirectional CharLM Weighted model (backward context resolution of sentence-final syntax)
+- Evaluated on: Chagatai sequential test set (295 samples)
+- Threshold selection: tau = 0.43 selected strictly via grid search on Dev (145 samples)
+
+Data:
+- Dev samples: 145 sequences (Chagatai sequential)
+- Test samples: 295 sequences (Chagatai sequential)
+
+Metrics on Chagatai test set (295 samples):
+- Token boundaries:    precision=1.0000  recall=1.0000  f1=1.0000  tp=12830 fp=0   fn=0
+- Sentence boundaries: precision=0.7917  recall=0.7051  f1=0.7459  tp=612   fp=161 fn=256
+- Sentence exact match: 82/295 = 0.2780 (27.80%)
+
+Notes:
+- NEW ALL-TIME PROJECT RECORD FOR EXACT MATCH: 27.80% (82/295 full paragraphs error-free).
+- The integration of backward character language model contextual representations successfully resolves trailing ambiguity at paragraph boundaries, allowing 82 complete paragraphs to be segmented with 100% precision and recall.
+- Missed boundaries (False Negatives) reduced to 256.
+
+
