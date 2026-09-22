@@ -27,7 +27,7 @@ class ChagataiSBD:
 
     def __init__(
         self,
-        model_path: Union[str, Path] = "models/onnx/chagatai_sbd_tri_hybrid_sota.onnx",
+        model_path: Union[str, Path] = "models/onnx/chagatai_sbd_tri_hybrid_stanza.onnx",
         vocab_path: Union[str, Path] = "models/onnx/vocab.json",
         providers: List[str] = None
     ):
@@ -133,7 +133,7 @@ class ChagataiSBD:
 
 if __name__ == '__main__':
     # Smoke test on a sample Chagatai paragraph
-    sbd = ChagataiSBD("models/onnx/chagatai_sbd_tri_hybrid_sota.onnx", "models/onnx/vocab.json")
+    sbd = ChagataiSBD("models/onnx/chagatai_sbd_tri_hybrid_stanza.onnx", "models/onnx/vocab.json")
     
     sample_text = (
         "سلطان ابوسعید میرزا شهادت تاپقاندین سونگ سمرقند ولایتینی میرزا احمد آلدی "
